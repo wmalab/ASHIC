@@ -1,9 +1,9 @@
 from setuptools import setup
 
 setup(
-    name='allelichicem',
+    name='ashic',
     version='0.1.0',
-    packages=['allelichicem'],
+    packages=['ashic'],
     install_requires=[
         'numpy',
         'matplotlib',
@@ -16,7 +16,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'allelichicem = allelichicem.__main__:cli'
+            'ashic = ashic.__main__:cli'
         ]
     },
 )

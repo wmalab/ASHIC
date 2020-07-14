@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from sklearn.isotonic import IsotonicRegression
 from statsmodels.base.model import GenericLikelihoodModel
-from allelichicem.utils import init_counts, join_matrix
+from ashic.utils import init_counts, join_matrix
 
 
 def mask_data(mat, mask, loci):

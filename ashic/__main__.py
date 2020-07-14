@@ -1,13 +1,13 @@
 import click
-from allelichicem.commands import simulateyeast
-from allelichicem.commands import simulatehuman
-from allelichicem.misc import postprocessing
+from ashic.commands import simulateyeast
+from ashic.commands import simulatehuman
+from ashic.misc import postprocessing
 
 
 @click.group()
 def cli():
     """
-    AllelicHiCEM: EM algorithm to assign uncertain contacts in allelic Hi-C
+    ASHIC: EM algorithm to assign uncertain contacts in allelic Hi-C
     """
 
 

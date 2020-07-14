@@ -7,7 +7,7 @@ import numpy as np
 from scipy import optimize
 from sklearn.utils import check_random_state
 from sklearn.metrics import euclidean_distances
-from allelichicem.misc import smoothing
+from ashic.misc import smoothing
 
 
 def compute_wish_distances(counts, alpha=-3., beta=1.):

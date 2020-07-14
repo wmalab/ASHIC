@@ -3,10 +3,10 @@ from sklearn.metrics import euclidean_distances
 import itertools
 import numpy as np
 import iced
-from allelichicem.model.basemodel import BaseModel
-from allelichicem.optimization.zipmodel import estimate_x
-from allelichicem.utils import encodejson
-from allelichicem.utils import centroid_distance
+from ashic.model.basemodel import BaseModel
+from ashic.optimization.zipmodel import estimate_x
+from ashic.utils import encodejson
+from ashic.utils import centroid_distance
 import json
 
 

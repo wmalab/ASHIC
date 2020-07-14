@@ -1,22 +1,22 @@
 import os
 import json
 import numpy as np
-from allelichicem import simulation
-from allelichicem.utils import naneuclidean_distances, encodejson
-from allelichicem.commands.fit import create_model_human
-from allelichicem.em import emfit
-from allelichicem.progresscb import basic_callback, SimulationProgress, BasicCallback
-from allelichicem.model.zipoisson import ZeroInflatedPoisson
-from allelichicem.model.poisson import Poisson
-from allelichicem.misc import estimateparams
-from allelichicem.utils import init_counts, join_matrix, mask_diagonals
-from allelichicem.optimization import rmds
-from allelichicem.misc import plot3d
+from ashic import simulation
+from ashic.utils import naneuclidean_distances, encodejson
+from ashic.commands.fit import create_model_human
+from ashic.em import emfit
+from ashic.progresscb import basic_callback, SimulationProgress, BasicCallback
+from ashic.model.zipoisson import ZeroInflatedPoisson
+from ashic.model.poisson import Poisson
+from ashic.misc import estimateparams
+from ashic.utils import init_counts, join_matrix, mask_diagonals
+from ashic.optimization import rmds
+from ashic.misc import plot3d
 import cPickle as pickle
 import iced
 from time import time
 from datetime import timedelta
-from allelichicem.structure import duplicate_structure
+from ashic.structure import duplicate_structure
 
 
 # TODO mask unmappable loci

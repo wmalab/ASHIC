@@ -1,9 +1,9 @@
 import numpy as np
-from allelichicem.model.zipoisson import ZeroInflatedPoisson
-from allelichicem.model.zipoissonhuman import ZeroInflatedPoissonHuman
-from allelichicem.model.poisson import Poisson
-from allelichicem.utils import init_counts, join_matrix
-from allelichicem.optimization.mds import MDS
+from ashic.model.zipoisson import ZeroInflatedPoisson
+from ashic.model.zipoissonhuman import ZeroInflatedPoissonHuman
+from ashic.model.poisson import Poisson
+from ashic.utils import init_counts, join_matrix
+from ashic.optimization.mds import MDS
 
 
 def initialx(data, alpha=-3.0, beta=1.0, seed=0, max_iter=5000, smooth=False, h=0, diag=0):

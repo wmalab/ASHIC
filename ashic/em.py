@@ -1,4 +1,4 @@
-from allelichicem.progresscb import basic_callback
+from ashic.progresscb import basic_callback
 
 
 def emfit(model, data, maxiter=20, tol=1e-4, callback=basic_callback, **kwargs):

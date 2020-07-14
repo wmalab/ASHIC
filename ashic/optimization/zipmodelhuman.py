@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize
 from sklearn.metrics import euclidean_distances
-from allelichicem.utils import naneuclidean_distances
+from ashic.utils import naneuclidean_distances
 
 
 # TODO multiple alpha

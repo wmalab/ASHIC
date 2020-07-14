@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import optimize
 from sklearn.metrics import euclidean_distances
-from allelichicem.utils import rotation, fill_array3d
+from ashic.utils import rotation, fill_array3d
 
 
 def prepare_data(x, ztab, zab, alpha, beta, mask, loci):

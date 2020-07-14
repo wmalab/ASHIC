@@ -5,8 +5,8 @@ import os
 import json
 import cPickle as pickle
 import numpy as np
-from allelichicem.model.zipoissonhuman import ZeroInflatedPoissonHuman
-from allelichicem.model.poisson import Poisson
+from ashic.model.zipoissonhuman import ZeroInflatedPoissonHuman
+from ashic.model.poisson import Poisson
 
 
 def symlink_force(source, link_name):

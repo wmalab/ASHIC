@@ -1,13 +1,13 @@
 import os
 import numpy as np
 from sklearn.metrics import euclidean_distances
-from allelichicem.structure import uniformscaling_distance
-from allelichicem.model.zipoisson import ZeroInflatedPoisson
-from allelichicem.model.zipoissonhuman import ZeroInflatedPoissonHuman
-from allelichicem.model.poisson import Poisson
-from allelichicem.utils import join_matrix
-from allelichicem.utils import disjoin_matrix
-from allelichicem.misc import plot3d
+from ashic.structure import uniformscaling_distance
+from ashic.model.zipoisson import ZeroInflatedPoisson
+from ashic.model.zipoissonhuman import ZeroInflatedPoissonHuman
+from ashic.model.poisson import Poisson
+from ashic.utils import join_matrix
+from ashic.utils import disjoin_matrix
+from ashic.misc import plot3d
 
 
 def basic_callback(i, model, loglikehood, expected):

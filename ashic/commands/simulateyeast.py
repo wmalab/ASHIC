@@ -1,16 +1,16 @@
 import os
 import json
 import numpy as np
-from allelichicem import simulation
-from allelichicem import structure
-from allelichicem.utils import find_closestlength_chrom, encodejson
-from allelichicem.utils import get_localinds, get_rdis, parse_localinds
-from allelichicem.utils import centroid_distance
-from allelichicem.commands.fit import initialx, create_model
-from allelichicem.em import emfit
-from allelichicem.progresscb import SimulationProgress
-from allelichicem.model.zipoisson import ZeroInflatedPoisson
-from allelichicem.model.poisson import Poisson
+from ashic import simulation
+from ashic import structure
+from ashic.utils import find_closestlength_chrom, encodejson
+from ashic.utils import get_localinds, get_rdis, parse_localinds
+from ashic.utils import centroid_distance
+from ashic.commands.fit import initialx, create_model
+from ashic.em import emfit
+from ashic.progresscb import SimulationProgress
+from ashic.model.zipoisson import ZeroInflatedPoisson
+from ashic.model.poisson import Poisson
 
 
 def load_yeaststructures():

@@ -4,11 +4,11 @@ from sklearn.metrics import euclidean_distances
 import itertools
 import numpy as np
 import iced
-from structure import compare_two_structure_reflection
-from allelichicem.model.basemodel import BaseModel
-from allelichicem.optimization.zipmodel import estimate_x
-from allelichicem.utils import encodejson
-from estimatex import estimate_X
+from ashic.structure import compare_two_structure_reflection
+from ashic.model.basemodel import BaseModel
+from ashic.optimization.zipmodel import estimate_x
+from ashic.utils import encodejson
+# from estimatex import estimate_X
 import json
 
 
@@ -767,7 +767,7 @@ class ZeroInflatedPoisson(BaseModel):
         #         s2 += exp['exp_zc']['b*b'][k, j] + exp['exp_zc']['b*b*'][k, j]
         #     p[k] = s1 / (s1 + s2)
         # TODO multiple estimate X to get the best one
-        X = estimate_X(exp['zt'], exp['z'], self.alpha, self.beta, ini=self.x)
+        X = estimate_x(exp['zt'], exp['z'], self.alpha, self.beta, ini=self.x)
         # X = estimate_X(exp['zt'], exp['z'], est['alpha'], est['beta'])
         # print "after - before = {}".format(
         #     - poisson_complete_ll(X, exp['zt'], exp['z'], est['alpha'], est['beta']) +

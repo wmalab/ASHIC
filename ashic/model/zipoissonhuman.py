@@ -1,16 +1,16 @@
 from scipy.stats import poisson
 from scipy.misc import logsumexp
 from sklearn.metrics import euclidean_distances
-from allelichicem.utils import naneuclidean_distances, form_alphamatrix
+from ashic.utils import naneuclidean_distances, form_alphamatrix
 import itertools
 import numpy as np
 import iced
-from structure import compare_two_structure_reflection
-from allelichicem.model.basemodel import BaseModel
-from allelichicem.optimization.zipmodelhuman import estimate_x_human
-from allelichicem.optimization.zipmodelinter import estimate_rotation
-from allelichicem.utils import encodejson
-from estimatex import estimate_X
+from ashic.structure import compare_two_structure_reflection
+from ashic.model.basemodel import BaseModel
+from ashic.optimization.zipmodelhuman import estimate_x_human
+from ashic.optimization.zipmodelinter import estimate_rotation
+from ashic.utils import encodejson
+# from estimatex import estimate_X
 import json
 import os
 

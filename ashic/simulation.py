@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import euclidean_distances
-from allelichicem import structure
+from ashic import structure
 from sklearn.utils import check_random_state
 from utils import naneuclidean_distances, form_alphamatrix, mask_diagonals
 

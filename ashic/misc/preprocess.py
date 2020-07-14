@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from itertools import combinations
 from itertools import combinations_with_replacement
-from allelichicem.utils import mask_diagonals
+from ashic.utils import mask_diagonals
 
 
 @click.group()

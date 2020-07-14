@@ -1,15 +1,15 @@
 from sklearn.metrics import euclidean_distances
 import numpy as np
 from scipy.stats import poisson
-from structure import compare_two_structure_reflection
-from allelichicem.model.basemodel import BaseModel
-from allelichicem.model.zipoissonhuman import estimate_p, multinomial_p, \
+from ashic.structure import compare_two_structure_reflection
+from ashic.model.basemodel import BaseModel
+from ashic.model.zipoissonhuman import estimate_p, multinomial_p, \
     poisson_lambda_multialpha, disjoin_matrix, join_matrix
-from allelichicem.utils import naneuclidean_distances, form_alphamatrix
+from ashic.utils import naneuclidean_distances, form_alphamatrix
 import iced
-from allelichicem.optimization.poissonmodel import estimate_x
-from allelichicem.optimization.poissonmodelinter import estimate_rotation
-from allelichicem.utils import encodejson
+from ashic.optimization.poissonmodel import estimate_x
+from ashic.optimization.poissonmodelinter import estimate_rotation
+from ashic.utils import encodejson
 import json
 import os
 
