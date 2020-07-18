@@ -37,7 +37,8 @@ def poisson_gradient_x(x, t, alpha, beta, bias=None, mask=None):
     diff = (tmp - tmp.transpose(1, 0, 2)).flatten()
     d = euclidean_distances(x).repeat(3)
     a = alpha.repeat(3)
-    grad = (t.repeat(3) - beta * np.power(d, a)) * a * diff / (d ** 2)
+    b = np.outer(bias, bias).repeat(3)
+    grad = (t.repeat(3) - beta * b * np.power(d, a)) * a * diff / (d ** 2)
     grad[np.invert(mask.repeat(3))] = 0
     return - grad.reshape((m, m, 3)).sum(1).flatten()
 
