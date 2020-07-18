@@ -17,7 +17,7 @@ import os
 # TODO change alpha to alpha_mat and alpha_pat
 class Poisson(BaseModel):
     def __init__(self, params, normalize=False, loci=None, diag=0, mask=None, random_state=None):
-        super(Poisson, self).__init__("Poisson Model")
+        super(Poisson, self).__init__("Poisson-Multinomial Model")
         assert params.get('n', None) is not None, \
             "Chromosome bin-size (N) must be provided!"
         self.n = params['n']
@@ -47,7 +47,9 @@ class Poisson(BaseModel):
             self.p = None
             print "No assignable probabilities provided! Will calculated using observed data."
         # check if bias is provided, otherwise initialize with ones
-        if not self.normalize or params.get('bias', None) is None:
+        if not self.normalize:
+            self.bias = np.ones(self.n * 2, dtype=float)
+        elif params.get('bias', None) is None:
             self.bias = np.ones(self.n * 2, dtype=float)
             print "No bias provided! Initialize with ones instead."
         else:
@@ -182,10 +184,10 @@ class Poisson(BaseModel):
         tmatab = tmatab + tmatba.T
         tmatbb = tmatbb + tmatbb.T
         tmat = join_matrix(tmataa, tmatab, tmatab.T, tmatbb)
-        if self.normalize:
-            _, bias = iced.normalization.ICE_normalization(np.array(tmat), max_iter=iced_iter, output_bias=True)
+        # if self.normalize:
+            # _, bias = iced.normalization.ICE_normalization(np.array(tmat), max_iter=iced_iter, output_bias=True)
             # TODO check if bias make ll decrease or count iteration
-            self.bias = bias
+            # self.bias = bias
         mask_full = np.tile(self.mask, (2, 2))
         symask_full = np.tile(self.symask, (2, 2))
         alpha = form_alphamatrix(self.alpha_mat, self.alpha_pat, self.alpha_inter, self.n)
@@ -199,7 +201,9 @@ class Poisson(BaseModel):
                             self.beta, bias=self.bias[self.n:], ini=self.x[self.n:, :],
                             mask=self.mask, symask=self.symask, maxiter=max_func)
             self.x = np.concatenate((x1, x2))
-            self.x = estimate_rotation(self.x, tmatab, self.alpha_inter, self.beta, self.symask, self.loci)
+            # TODO add bias to inter-homolog optimization
+            self.x = estimate_rotation(x=self.x, tab=tmatab, alpha=self.alpha_inter, beta=self.beta, 
+                                        mask=self.symask, loci=self.loci, bias=self.bias)
         else:
             self.x = estimate_x(tmat, alpha, self.beta, bias=self.bias, ini=self.x,
                                 mask=mask_full, symask=symask_full, maxiter=max_func)

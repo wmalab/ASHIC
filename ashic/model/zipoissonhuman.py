@@ -122,7 +122,7 @@ def get_diag(mat, offset):
 
 class ZeroInflatedPoissonHuman(BaseModel):
     def __init__(self, params, merge=None, normalize=False, loci=None, diag=0, mask=None, random_state=None):
-        super(ZeroInflatedPoissonHuman, self).__init__("Zero-Inflated Poisson Model for Human")
+        super(ZeroInflatedPoissonHuman, self).__init__("Zero-Inflated Poisson-Multinomial Model")
         assert params.get('n', None) is not None, \
             "Chromosome bin-size (N) must be provided!"
         self.n = params['n']
@@ -392,10 +392,10 @@ class ZeroInflatedPoissonHuman(BaseModel):
         ztab = ztab + ztba.T
         ztbb = ztbb + ztbb.T
         ztmat = join_matrix(ztaa, ztab, ztab.T, ztbb)
-        if self.normalize:
-            _, bias = iced.normalization.ICE_normalization(np.array(ztmat), max_iter=iced_iter, output_bias=True)
+        # if self.normalize:
+            # _, bias = iced.normalization.ICE_normalization(np.array(ztmat), max_iter=iced_iter, output_bias=True)
             # TODO check if bias make ll decrease or count iteration
-            self.bias = bias
+            # self.bias = bias
         mask_full = np.tile(self.mask, (2, 2))
         symask_full = np.tile(self.symask, (2, 2))
         alpha = form_alphamatrix(self.alpha_mat, self.alpha_pat, self.alpha_inter, self.n)
@@ -411,7 +411,10 @@ class ZeroInflatedPoissonHuman(BaseModel):
                                   mask=self.mask, symask=self.symask, maxiter=max_func)
             self.x = np.concatenate((x1, x2))
             # update rotation angles
-            self.x = estimate_rotation(self.x, ztab, zab, self.alpha_inter, self.beta, self.symask, self.loci)
+            # TODO add bias to inter-homolog optimization
+            self.x = estimate_rotation(x=self.x, ztab=ztab, zab=zab, 
+                                        alpha=self.alpha_inter, beta=self.beta, 
+                                        mask=self.symask, loci=self.loci, bias=self.bias)
         else:
             self.x = estimate_x_human(ztmat, zmat, alpha, self.beta, bias=self.bias, ini=self.x,
                                       mask=mask_full, symask=symask_full, maxiter=max_func)

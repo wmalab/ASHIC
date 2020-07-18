@@ -4,7 +4,7 @@ from sklearn.metrics import euclidean_distances
 from ashic.utils import rotation, fill_array3d
 
 
-def prepare_data(x, ztab, zab, alpha, beta, mask, loci):
+def prepare_data(x, ztab, zab, alpha, beta, mask, loci, bias):
     n = int(x.shape[0]/2)
     x1 = x[:n, :][loci, :]
     x2 = x[n:, :][loci, :]
@@ -15,13 +15,15 @@ def prepare_data(x, ztab, zab, alpha, beta, mask, loci):
     # centering x1, x2
     x1 = x1 - c1
     x2 = x2 - c2
+    b1 = bias[:n][loci]
+    b2 = bias[n:][loci]
     return x1, x2, d, ztab[loci, :][:, loci], zab[loci, :][:, loci], \
-        alpha, beta, mask[loci, :][:, loci]
+        alpha, beta, mask[loci, :][:, loci], b1, b2
 
 
-def poisson_complete_ll(x1, x2, zt, z, alpha, beta, mask):
+def poisson_complete_ll(x1, x2, zt, z, alpha, beta, mask, b1, b2):
     d = euclidean_distances(x1, x2)
-    mu = beta * np.power(d, alpha)[mask]
+    mu = beta * np.power(d, alpha)[mask] * np.outer(b1, b2)[mask]
     ll = zt[mask] * np.log(mu) - z[mask] * mu
     return - ll.sum()
 
@@ -62,13 +64,13 @@ def eval_f(angles, data=None):
     """
     function to minimize
     """
-    x1, x2, d, zt, z, alpha, beta, mask = data
+    x1, x2, d, zt, z, alpha, beta, mask, b1, b2 = data
     thetaxm, thetaym, thetazm, thetaxp, thetayp, thetazp = angles
     rm = rotation(thetaxm, thetaym, thetazm)
     rp = rotation(thetaxp, thetayp, thetazp)
     x1r = rm.dot(x1.T).T
     x2r = rp.dot(x2.T).T + d
-    obj = poisson_complete_ll(x1r, x2r, zt, z, alpha, beta, mask)
+    obj = poisson_complete_ll(x1r, x2r, zt, z, alpha, beta, mask, b1, b2)
     return obj
 
 
@@ -83,8 +85,8 @@ def eval_grad_f(x, data=None):
     return grad.flatten()
 
 
-def estimate_rotation(x, ztab, zab, alpha, beta, mask, loci, maxiter=1000):
-    data = prepare_data(x, ztab, zab, alpha, beta, mask, loci)
+def estimate_rotation(x, ztab, zab, alpha, beta, mask, loci, bias, maxiter=1000):
+    data = prepare_data(x, ztab, zab, alpha, beta, mask, loci, bias)
     ini = np.repeat(0., 6).astype(float)
     results = optimize.fmin_l_bfgs_b(
         eval_f,  # function to minimize
