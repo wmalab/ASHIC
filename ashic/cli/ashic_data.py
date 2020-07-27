@@ -1,5 +1,5 @@
 """
-Convert .validpairs file into input data format.
+Preprocess file containing aligned reads with parental assignment into input data format.
 step1:
 - split the input file into chunks
 - split into chunk00_chrX_ref-ref, chrX.ref-alt, chrX.alt-alt, chrX.ref-x, chrX.alt-x, chrX.x-x
@@ -7,7 +7,6 @@ step2:
 - merge all chunks
 step3:
 - binning matrices
-total ~360000000 valid pairs
 """
 
 import os
@@ -28,9 +27,12 @@ from itertools import combinations_with_replacement
 from ashic.utils import mask_diagonals
 
 
-@click.group()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
-	pass
+	"""Preprocess file containing aligned reads with
+	parental assignment into ASHIC input data format."""
 
 
 def write_slurm_script(out, njobs, file_prefix):
@@ -39,32 +41,41 @@ def write_slurm_script(out, njobs, file_prefix):
 #SBATCH --job-name=split_chrom
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --mem=4G
-#SBATCH --partition=wmalab
+#SBATCH --mem=1G
 #SBATCH --array=0-{}
 #SBATCH --output=array_%A_%a.out
 
-python {} split2chrs {}$SLURM_ARRAY_TASK_ID {}
-	""".format(njobs-1, os.path.abspath(__file__), 
-			   file_prefix, os.path.join(out, "chroms"))
+# Uncomment the following line to load conda environment
+# conda activate ashic
+ashic-data split2chrs {}$SLURM_ARRAY_TASK_ID {}
+	""".format(njobs-1, file_prefix, os.path.join(out, "chromosomes"))
 
-	with open(os.path.join(out, 'slurm_step1.sh'), 'w') as fh:
+	with open(os.path.join(out, 'slurm_split2chrs.sh'), 'w') as fh:
 		fh.write(slurm_script)
 
 
 @cli.command(name="split2chunks")
-@click.option("--prefix")
-@click.option("--nlines", default=20000000, type=int)
+@click.option("--prefix", 
+			  help='Prefix of chunks. '
+			  + 'If not provided, the basename of the FILENAME will be used.')
+@click.option("--nlines", default=20000000, 
+			  show_default=True, 
+			  type=int,
+			  help='Number of lines of each chunk.')
 @click.argument("filename", type=click.Path(exists=True))
-@click.argument("out")
-def split_chunks(filename, out, prefix, nlines):
+@click.argument("outputdir", type=click.Path())
+def split_chunks(filename, outputdir, prefix, nlines):
+	"""Split the file into chunks for parallelization."""
 	if prefix is not None:
-		prefix = os.path.join(out, prefix + "_chunk_")
+		prefix = os.path.join(outputdir, prefix + "_chunk_")
 	else:
-		prefix = os.path.join(out, os.path.basename(filename) + "_chunk_")
-	if not os.path.exists(out):
-		os.makedirs(out)
-	bash_cmd = "zcat {} | split -l {} -d - {}".format(filename, nlines, prefix)
+		prefix = os.path.join(outputdir, os.path.basename(filename) + "_chunk_")
+	if not os.path.exists(outputdir):
+		os.makedirs(outputdir)
+	if filename.endswith('.gz'):
+		bash_cmd = "zcat {} | split -l {} -d - {}".format(filename, nlines, prefix)
+	else:
+		bash_cmd = "split -l {} -d {} {}".format(nlines, filename, prefix)
 	subprocess.check_call(bash_cmd, shell=True)
 	# rename *_chunk_00 to *_chunk_0
 	files = glob(prefix + "*")
@@ -73,16 +84,22 @@ def split_chunks(filename, out, prefix, nlines):
 		dst, chunk = file.split("_chunk_")
 		dst = dst + "_chunk_" + str(int(chunk))
 		shutil.move(file, dst)
-	write_slurm_script(out, njobs, prefix)
+	write_slurm_script(outputdir, njobs, prefix)
 
-
+# add reading from .chrom.sizes file
 def get_chroms(genome):
 	if genome == "mm10":
 		return ['chr' + str(x) for x in range(1, 20)] + ['chrX']
+	elif os.path.isfile(genome):
+		chrom_list = []
+		with open(genome, 'r') as fh:
+			for line in fh:
+				chrom_list.append(line.split('\t')[0])
+		return chrom_list
 	else:
 		raise NotImplementedError("Not implemented for genome: " + genome)
 
-
+# add reading from .chrom.sizes file
 def get_chrom_size(chrom, genome):
 	if genome == "mm10":
 		chrom_sizes = {
@@ -108,35 +125,65 @@ def get_chrom_size(chrom, genome):
 		"chr19":	61431566,
 		}
 		return chrom_sizes[chrom]
+	elif os.path.isfile(genome):
+		with open(genome, 'r') as fh:
+			for line in fh:
+				ch, bp = line.split('\t')
+				if ch == chrom:
+					return int(bp)
 	else:
 		raise NotImplementedError("Not implemented for genome: " + genome)
 
 
 @cli.command(name="split2chrs")
 @click.option("--mat", default="ref", 
-			  help="string for maternal allele")
+			  show_default=True,
+			  help="Allele flag of maternal-specific reads.")
 @click.option("--pat", default="alt", 
-			  help="string for paternal allele")
+			  show_default=True,
+			  help="Allele flag of paternal-specific reads.")
 @click.option("--amb", default="both-ref", 
-			  help="string for ambiguous allele")
-@click.option("--chr1", default=3, type=int, 
-			  help="column index (start from 1) for first chr")
-@click.option("--allele1", default=5, type=int,
-			  help="column index for first allele")
-@click.option("--chr2", default=8, type=int,
-			  help="column index for second chr")
-@click.option("--allele2", default=10, type=int,
-			  help="column index for second allele")
+			  show_default=True,
+			  help="Allele flag of allele-ambiguous reads.")
+@click.option("--chr1", default=3, 
+			  show_default=True, 
+			  type=int, 
+			  help="Column index (1-based) of chromosome of the 1st end.")
+@click.option("--allele1", default=5, 
+			  show_default=True,
+			  type=int,
+			  help="Column index (1-based) of allele of the 1st end.")
+@click.option("--chr2", default=8, 
+			  show_default=True, 
+			  type=int,
+			  help="Column index (1-based) of chromosome of the 2nd end.")
+@click.option("--allele2", default=10, 
+			  show_default=True, 
+			  type=int,
+			  help="Column index (1-based) of allele of the 2nd end.")
 @click.argument("filename", type=click.Path(exists=True))
-@click.argument("out")
-def split_chroms(filename, out, mat, pat, amb,
+@click.argument("outputdir", type=click.Path())
+def split_chroms(filename, outputdir, mat, pat, amb,
 				 chr1, allele1, chr2, allele2):
+	"""Split contacts into intra-chromosomal allele-certain and allele-ambiguous contacts.
+	
+	\b
+	The input file will be split into the followings:
+	Allele-certain contacts:
+		<FILENAME>_<CHR>_<MAT>_<MAT>
+		<FILENAME>_<CHR>_<PAT>_<PAT>
+		<FILENAME>_<CHR>_<MAT>_<PAT>
+	Allele-ambiguous contacts:
+		<FILENAME>_<CHR>_<MAT>_<AMB>
+		<FILENAME>_<CHR>_<PAT>_<AMB>
+		<FILENAME>_<CHR>_<AMB>_<AMB>"""			 
 	def get_suffix(a1, a2):
+		# fix allele flags order in file suffix: mat > pat > amb
 		order = {mat: 0, pat: 1, amb: 2}
 		a1, a2 = sorted([a1, a2], key=lambda x: order[x])
 		return a1 + "_" + a2
-	if not os.path.exists(out):
-		os.makedirs(out)
+	if not os.path.exists(outputdir):
+		os.makedirs(outputdir)
 	try:
 		files = {}
 		with open(filename, 'r') as fr:
@@ -148,7 +195,7 @@ def split_chroms(filename, out, mat, pat, amb,
 				suffix = get_suffix(alle1, alle2)
 				if (chr1_, suffix) not in files:
 					files[(chr1_, suffix)] = open(os.path.join(
-						out, "{}_{}_{}".format(os.path.basename(filename), chr1_, suffix)
+						outputdir, "{}_{}_{}".format(os.path.basename(filename), chr1_, suffix)
 					), 'w')
 				files[(chr1_, suffix)].write(line)
 	finally:
@@ -157,19 +204,26 @@ def split_chroms(filename, out, mat, pat, amb,
 	
 
 @cli.command(name="merge")
-@click.option("--genome", default="mm10")
+@click.option("--genome", default="mm10",
+			  show_default=True,
+			  help="Genome reference. Built-in supports 'mm10'. " +
+			  "Other genome can be supported by providing a '**.chrom.sizes' file.")
 @click.option("--mat", default="ref", 
-			  help="string for maternal allele")
+			  show_default=True,
+			  help="Allele flag of maternal-specific reads.")
 @click.option("--pat", default="alt", 
-			  help="string for paternal allele")
+			  show_default=True,
+			  help="Allele flag of paternal-specific reads.")
 @click.option("--amb", default="both-ref", 
-			  help="string for ambiguous allele")
-@click.argument("src", type=click.Path(exists=True))
-def merge(src, genome, mat, pat, amb):
+			  show_default=True,
+			  help="Allele flag of allele-ambiguous reads.")
+@click.argument("directory", type=click.Path(exists=True))
+def merge(directory, genome, mat, pat, amb):
+	"""Merge resulting files in DIRECTORY from `split2chunks` and `split2chrs`."""
 	chroms = get_chroms(genome)
 	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
 		for chrom in chroms:
-			files = glob(os.path.join(src, "*_chunk_*_{}_{}_{}".format(chrom, a1, a2)))
+			files = glob(os.path.join(directory, "*_chunk_*_{}_{}_{}".format(chrom, a1, a2)))
 			if len(files) < 1: continue
 			merge_file = "{}_{}_{}_{}".format(files[0].split("_chunk_")[0], chrom, a1, a2)
 			bash_cmd = ["cat"] + files + ['>', merge_file]
@@ -180,24 +234,7 @@ def merge(src, genome, mat, pat, amb):
 				os.remove(file)
 
 
-@cli.command(name="binning")
-@click.option("--res", default=100000, type=int)
-@click.option("--chrom", required=True)
-@click.option("--genome", default="mm10")
-@click.option("--start", type=int)
-@click.option("--end", type=int)
-@click.option("--mat", default="ref")
-@click.option("--pat", default="alt")
-@click.option("--amb", default="both-ref")
-@click.option("--c1", default=3, type=int)
-@click.option("--p1", default=4, type=int)
-@click.option("--a1", default=5, type=int)
-@click.option("--c2", default=8, type=int)
-@click.option("--p2", default=9, type=int)
-@click.option("--a2", default=10, type=int)
-@click.argument("filename", type=click.Path(exists=True))
-@click.argument("out")
-def binning(filename, out, res, chrom, genome,
+def pairs2mat(filename, out, res, chrom, genome,
 			start, end,
 			mat, pat, amb,
 			c1, p1, a1, c2, p2, a2):
@@ -240,21 +277,117 @@ def binning(filename, out, res, chrom, genome,
 					os.path.basename(filename), res, s, e)), matrix)
 
 
-@cli.command("prepare")
-@click.option("--diag", default=1, type=int)
-@click.option("--perc", default=2, type=float)
-@click.option("--mat", default="ref")
-@click.option("--pat", default="alt")
-@click.option("--amb", default="both-ref")
+@cli.command(name="binning")
+@click.option("--res", default=100000, type=int,
+			  show_default=True,
+			  help='Resolution in base pair of the binned contact matrices.')
+@click.option("--chrom", required=True,
+			  help='Chromosome to generate the binned contact matrices.')
+@click.option("--genome", default="mm10",
+			  show_default=True,
+			  help="Genome reference. Built-in supports 'mm10'. " +
+			  "Other genome can be supported by providing a '**.chrom.sizes' file.")
+@click.option("--start", type=int,
+			  help='If provided, instead of binning the whole chromosome, '+
+			  'only region after <start> (inclusive) will be binned.')
+@click.option("--end", type=int,
+			  help='If provided, instead of binning the whole chromosome, '+
+			  'only region before <end> (inclusive) will be binned.')
+@click.option("--mat", default="ref",
+			  show_default=True,
+			  help='Allele flag of maternal-specific reads.')
+@click.option("--pat", default="alt",
+			  show_default=True,
+			  help='Allele flag of paternal-specific reads.')
+@click.option("--amb", default="both-ref",
+			  show_default=True,
+			  help='Allele flag of allele-ambiguous reads.')
+@click.option("--c1", default=3, 
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of chromosome of the 1st end.')
+@click.option("--p1", default=4,
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of coordinate of the 1st end.')
+@click.option("--a1", default=5, 
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of allele of the 1st end.')
+@click.option("--c2", default=8, 
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of chromosome of the 2nd end.')
+@click.option("--p2", default=9, 
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of coordinate of the 2nd end.')
+@click.option("--a2", default=10, 
+			  show_default=True, 
+			  type=int,
+			  help='Column index (1-based) of allele of the 2nd end.')
+@click.argument("prefix")
+@click.argument("outputdir", type=click.Path())
+def binning(prefix, outputdir, res, chrom, genome,
+			start, end,
+			mat, pat, amb,
+			c1, p1, a1, c2, p2, a2):
+	"""Bin the mapped read pairs of chromosome <CHROM> into contact matrices.
+
+	The input files containing allele-certain and allele-ambiguous read pairs
+	should have name in format of <PREFIX>_<CHROM>_<MAT>_<MAT> and etc.
+	PREFIX need to include the PATH to the files as well."""
+	if not os.path.exists(outputdir):
+		os.makedirs(outputdir)
+	# enumerate ALLELE combinations: mat-mat, mat-pat, mat-amb, ...
+	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
+		filename = "{}_{}_{}_{}".format(prefix, chrom, a1, a2)
+		pairs2mat(filename, outputdir, res, chrom, genome,
+				  start, end,
+				  mat, pat, amb,
+				  c1, p1, a1, c2, p2, a2)
+
+
+@cli.command("pack")
+@click.option("--diag", default=1, 
+			  show_default=True, 
+			  type=int,
+			  help='Number of diagonals ignored in the contact matrix.')
+@click.option("--perc", default=2, 
+			  show_default=True, 
+			  type=float,
+			  help='Percentage (%) of rows/columns that interact the least to filter out. '+
+			  'Range from 0 to 100.')
+@click.option("--mat", default="ref",
+			  show_default=True,
+			  help='Allele flag of maternal-specific reads.')
+@click.option("--pat", default="alt",
+			  show_default=True,
+			  help='Allele flag of paternal-specific reads.')
+@click.option("--amb", default="both-ref",
+			  show_default=True,
+			  help='Allele flag of allele-ambiguous reads.')
 @click.argument("datadir", type=click.Path(exists=True))
-@click.argument("out")
-def prepare_data(datadir, out, diag, perc, mat, pat, amb):
+@click.argument("outputdir", type=click.Path())
+def prepare_data(datadir, outputdir, diag, perc, mat, pat, amb):
+	"""Pack allele-certain and allele-ambiguous binned matrices in DATADIR into ASHIC input format.
+	Filter and mask loci with low mappability in allele-certain intra-chromosomal contact matrices.
+	
+	DATADIR should contain .npy format matrices files with names in format of 
+
+	\b
+	*_<MAT>_<MAT>_*.npy,
+	*_<MAT>_<PAT>_*.npy, 
+	*_<PAT>_<PAT>_*.npy, 
+	*_<MAT>_<AMB>_*.npy, 
+	*_<PAT>_<AMB>_*.npy, 
+	*_<AMB>_<AMB>_*.npy"""
 	# read in matrix data
 	f = {mat: 'a', pat: 'b', amb: 'x'}
 	obs = {}
 	prefix = None
-	if not os.path.exists(out):
-		os.makedirs(out)
+	if not os.path.exists(outputdir):
+		os.makedirs(outputdir)
 	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
 		file = glob(os.path.join(datadir, "*_{}_{}_*.npy".format(a1, a2)))
 		assert len(file) == 1, \
@@ -277,12 +410,12 @@ def prepare_data(datadir, out, diag, perc, mat, pat, amb):
 		perc_aa.append(np.percentile(sum_aa, q))
 		perc_bb.append(np.percentile(sum_bb, q))
 	plt.plot(np.arange(1, 101), perc_aa, 
-			 label="{}-{}: {}".format(mat, mat, perc_aa[int(perc-1)]))
+			 label="{}-{}:{}%={}".format(mat, mat, perc, perc_aa[int(perc-1)]))
 	plt.plot(np.arange(1, 101), perc_bb, 
-			 label="{}-{}: {}".format(pat, pat, perc_bb[int(perc-1)]))
+			 label="{}-{}:{}%={}".format(pat, pat, perc, perc_bb[int(perc-1)]))
 	plt.axvline(x=perc, ls=":", color="red")
 	plt.legend()
-	plt.savefig(os.path.join(out, "percentiles.png"), bbox_inches="tight")
+	plt.savefig(os.path.join(outputdir, "percentiles.png"), bbox_inches="tight")
 	# filter low mappable (< q-th percentile marginal sum) bins
 	filtered = iced.filter.filter_low_counts(np.array(obs['aa']), 
 											 sparsity=False,
@@ -299,7 +432,7 @@ def prepare_data(datadir, out, diag, perc, mat, pat, amb):
 	# plot matrix heatmap
 	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
 		plt.matshow(obs[f[a1]+f[a2]], norm=LogNorm(), cmap="OrRd")
-		plt.savefig(os.path.join(out, "{}_{}.png".format(a1, a2)), bbox_inches="tight")
+		plt.savefig(os.path.join(outputdir, "{}_{}.png".format(a1, a2)), bbox_inches="tight")
 	params = {
 		'n': n,
 		'alpha_mat': -3.,
@@ -313,7 +446,7 @@ def prepare_data(datadir, out, diag, perc, mat, pat, amb):
 		'obs': obs,
 		'params': params,
 	}
-	with open(os.path.join(out, "{}.pickle".format(prefix)), 'wb') as fh:
+	with open(os.path.join(outputdir, "{}.pickle".format(prefix)), 'wb') as fh:
 		pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
 
