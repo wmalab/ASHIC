@@ -136,6 +136,8 @@ def get_chrom_size(chrom, genome):
 
 
 @cli.command(name="split2chrs")
+@click.option("--prefix", help="Prefix of the output files. " +
+			  "If not provided, the input filename will be used.")
 @click.option("--mat", default="ref", 
 			  show_default=True,
 			  help="Allele flag of maternal-specific reads.")
@@ -163,7 +165,7 @@ def get_chrom_size(chrom, genome):
 			  help="Column index (1-based) of allele of the 2nd end.")
 @click.argument("filename", type=click.Path(exists=True))
 @click.argument("outputdir", type=click.Path())
-def split_chroms(filename, outputdir, mat, pat, amb,
+def split_chroms(filename, outputdir, prefix, mat, pat, amb,
 				 chr1, allele1, chr2, allele2):
 	"""Split contacts into intra-chromosomal allele-certain and allele-ambiguous contacts.
 	
@@ -184,6 +186,8 @@ def split_chroms(filename, outputdir, mat, pat, amb,
 		return a1 + "_" + a2
 	if not os.path.exists(outputdir):
 		os.makedirs(outputdir)
+	if prefix is None:
+		prefix = os.path.basename(filename)
 	try:
 		files = {}
 		with open(filename, 'r') as fr:
@@ -195,7 +199,7 @@ def split_chroms(filename, outputdir, mat, pat, amb,
 				suffix = get_suffix(alle1, alle2)
 				if (chr1_, suffix) not in files:
 					files[(chr1_, suffix)] = open(os.path.join(
-						outputdir, "{}_{}_{}".format(os.path.basename(filename), chr1_, suffix)
+						outputdir, "{}_{}_{}".format(prefix, chr1_, suffix)
 					), 'w')
 				files[(chr1_, suffix)].write(line)
 	finally:
