@@ -345,8 +345,8 @@ def binning(prefix, outputdir, res, chrom, genome,
 	if not os.path.exists(outputdir):
 		os.makedirs(outputdir)
 	# enumerate ALLELE combinations: mat-mat, mat-pat, mat-amb, ...
-	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
-		filename = "{}_{}_{}_{}".format(prefix, chrom, a1, a2)
+	for allele1, allele2 in combinations_with_replacement([mat, pat, amb], 2):
+		filename = "{}_{}_{}_{}".format(prefix, chrom, allele1, allele2)
 		pairs2mat(filename, outputdir, res, chrom, genome,
 				  start, end,
 				  mat, pat, amb,
