@@ -435,9 +435,9 @@ def prepare_data(datadir, outputdir, diag, perc, mat, pat, amb):
 		obs[i][~loci, :] = 0
 		obs[i][:, ~loci] = 0
 	# plot matrix heatmap
-	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
-		plt.matshow(obs[f[a1]+f[a2]], norm=LogNorm(), cmap="OrRd")
-		plt.savefig(os.path.join(outputdir, "{}_{}.png".format(a1, a2)), bbox_inches="tight")
+	# for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
+	# 	plt.matshow(obs[f[a1]+f[a2]], norm=LogNorm(), cmap="OrRd")
+	# 	plt.savefig(os.path.join(outputdir, "{}_{}.png".format(a1, a2)), bbox_inches="tight")
 	params = {
 		'n': n,
 		'alpha_mat': -3.,
