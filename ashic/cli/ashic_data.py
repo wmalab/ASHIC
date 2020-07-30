@@ -12,6 +12,7 @@ step3:
 import os
 import sys
 import iced
+import gzip
 import click
 import shutil
 import subprocess
@@ -190,7 +191,7 @@ def split_chroms(filename, outputdir, prefix, mat, pat, amb,
 		prefix = os.path.basename(filename)
 	try:
 		files = {}
-		with open(filename, 'r') as fr:
+		with (gzip.open if filename.endswith('.gz') else open)(filename) as fr:
 			for line in fr:
 				entries = line.split('\t')
 				chr1_, alle1 = entries[chr1-1], entries[allele1-1]
