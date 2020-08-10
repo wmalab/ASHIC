@@ -167,9 +167,9 @@ class ZeroInflatedPoissonHuman(BaseModel):
             self.gamma[-1] = gamma[-1]  # inter-chr gamma
         else:
             self.gamma = np.zeros(self.n, dtype=float)
-            self.gamma[:self.merge-1] = random_state.uniform(0, 1, self.merge-1)
-            self.gamma[self.merge-1:-1] = random_state.uniform(0, 1, 1)
-            self.gamma[-1] = random_state.uniform(0, 0.1, 1)
+            self.gamma[:self.merge-1] = random_state.uniform(0.9, 1, self.merge-1)
+            self.gamma[self.merge-1:-1] = random_state.uniform(0.9, 1, 1)
+            self.gamma[-1] = random_state.uniform(0.9, 1, 1)
             print "No initial gamma values provided! Initialize with random instead."
         # check if bias is provided, otherwise initialize with ones
         if not self.normalize:
