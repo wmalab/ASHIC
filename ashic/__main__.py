@@ -41,6 +41,8 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               type=int,
               help='Number of diagonals from the last share the same gamma value. ' +
               'If not provided, each diagonal will use different gamma value.')
+@click.option('--init-gamma', help='TEXT file containing precomputed gamma values, ' +
+              'or a single value.')
 # @click.option('--init-gamma', type=click.Path(exists=True),
 #               help='TEXT file containing precomputed gamma values. ' +
 #               'Initial gamma values can be computed with command `ashic-utils fitgamma`. ' +
@@ -68,7 +70,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 # @click.argument('inputs', nargs=-1)
 def cli(inputfile, outputdir, model, diag,
         max_iter, tol, seed, gamma_share, 
-        init_x, 
+        init_gamma, init_x, 
         max_func, separate, normalize, save_iter):
     """ASHIC: Hierarchical Bayesian modeling of diploid chromatin contacts and structures.\n
     Example:
@@ -77,7 +79,7 @@ def cli(inputfile, outputdir, model, diag,
     Refer to README.md for <INPUT> format detail and how to generate with command `ashic-data`."""
     fitrealdata.run_ashic(inputfile, outputdir, model_type=model,
                           diag=diag, max_iter=max_iter, tol=tol, seed=seed, 
-                          gamma_share=gamma_share, init_gamma=None, init_x=init_x,
+                          gamma_share=gamma_share, init_gamma=init_gamma, init_x=init_x,
                           normalize=normalize, save_iter=save_iter, 
                           max_func=max_func, separate=separate)
 

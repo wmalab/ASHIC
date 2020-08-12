@@ -61,8 +61,15 @@ def run_ashic(inputfile, outputdir, model_type,
         'beta': params.get('beta', 1.0),
     }
     # initialize gamma from given file
-    if init_gamma is not None and os.path.isfile(init_gamma):
-        init['gamma'] = np.loadtxt(init_gamma)
+    if init_gamma is not None:
+        if os.path.isfile(init_gamma):
+            init['gamma'] = np.loadtxt(init_gamma)
+        else:
+            try:
+                init_gamma = float(init_gamma)
+                init['gamma'] = np.full(init['n'], init_gamma, dtype=float)
+            except ValueError:
+                print "init_gamma should either be a file or a single value."
     # initialize x as ranom, MDS or from given file
     if init_x == 'random':
         init['x'] = None
@@ -74,7 +81,15 @@ def run_ashic(inputfile, outputdir, model_type,
         init['x'] = rmds.combine(init_con, inimat, inipat, alpha=init['alpha_inter'],
                                  beta=init['beta'], loci=params['loci'], verbose=1, seed=seed)
     elif os.path.isfile(init_x):
-        init['x'] = np.loadtxt(init_x)
+        if init_x.endswith('.txt'):
+            init['x'] = np.loadtxt(init_x)
+        elif init_x.endswith('.json'):
+            with open(init_x) as xfh:
+                init['x'] = np.array(
+                    json.load(xfh)['params']['x'],
+                    dtype=float).reshape((-1, 3)) 
+        else:
+            raise ValueError("Structures init file should be in text or json format.")
     else:
         raise ValueError("Structures can only be initialized by: " + 
                          "'random', 'MDS' or a precomputed file, not {}.".format(init_x))
