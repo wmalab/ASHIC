@@ -10,12 +10,14 @@ step3:
 """
 
 import os
+import re
 import sys
 import iced
 import gzip
 import click
 import shutil
 import subprocess
+import collections
 import numpy as np
 from glob import glob
 import cPickle as pickle
@@ -351,6 +353,125 @@ def binning(prefix, outputdir, res, chrom, genome,
 				  start, end,
 				  mat, pat, amb,
 				  c1, p1, a1, c2, p2, a2)
+
+
+@cli.command(name="bin-hicpro")
+@click.option("--prefix", help='.npy files prefix. If not provide, use <filename>.')
+@click.option("--res", required=True, type=int,
+			  help='Resolution in base pair of the binned contact matrices.')
+@click.option("--region", required=True,
+			  help='Chromosome(s) or region(s) to generate the binned contact matrices.')
+@click.option("--genome", type=click.Path(exists=True),
+			  help="Genome reference (.chrom.sizes) file.")
+@click.option("--mat", default="1", show_default=True,
+			  help='Allele flag of maternal-specific reads.')
+@click.option("--pat", default="2", show_default=True,
+			  help='Allele flag of paternal-specific reads.')
+@click.option("--amb", default="0", show_default=True,
+			  help='Allele flag of allele-ambiguous reads.')
+@click.option("--c1", default=2, show_default=True, type=int,
+			  help='Column index (1-based) of chromosome of the 1st end.')
+@click.option("--p1", default=3, show_default=True, type=int,
+			  help='Column index (1-based) of coordinate of the 1st end.')
+@click.option("--a1", default=13, show_default=True, type=int,
+			  help='Column index (1-based) of allele of the 1st end.')
+@click.option("--c2", default=5, show_default=True, type=int,
+			  help='Column index (1-based) of chromosome of the 2nd end.')
+@click.option("--p2", default=6, show_default=True, type=int,
+			  help='Column index (1-based) of coordinate of the 2nd end.')
+@click.option("--a2", default=13, show_default=True, type=int,
+			  help='Column index (1-based) of allele of the 2nd end.')
+@click.option("--sep", default='-', show_default=True,
+			  help='Delimiter string to separate allele flags of ' + 
+			  '1st and 2nd ends if they are in the same column.')
+@click.argument("filename", type=click.Path(exists=True))
+@click.argument("output", type=click.Path())
+def binning_hicpro(filename, output, prefix, res, region, genome, 
+					mat, pat, amb, c1, p1, a1, c2, p2, a2, sep):
+	def get_chrom_sizes(genome):
+		"""readin genome sizes"""
+		sizes = {}
+		with open(genome) as fh:
+			for line in fh:
+				ch, bp = line.strip().split('\t')
+				sizes[ch] = int(bp)
+		return sizes
+	matrices = collections.defaultdict(dict)
+	# read multiple chroms with start and end
+	regions = collections.defaultdict(list)
+	chrom_sizes = get_chrom_sizes(genome)
+	sort_order = {mat: 0, pat: 1, amb: 2}
+	for rg in region.split(','):
+		rg = re.split('[:-]', rg)
+		if len(rg) == 1:
+			regions[rg[0]].append((0, np.inf))
+		elif len(rg) == 3:
+			regions[rg[0]].append((int(rg[1]), int(rg[2])))
+		else:
+			raise ValueError("region should be either 'chr1' or 'chr1:1000000-2000000' format.")
+		for tag1, tag2 in combinations_with_replacement([mat, pat, amb], 2):
+			if len(rg) == 1:
+				nbins = int(chrom_sizes[rg[0]] / res) + 1 
+			elif len(rg) == 3:
+				s, e = int(int(rg[1]) / res), int(int(rg[2]) / res)
+				nbins = e - s + 1
+			matrices['_'.join(rg)][tag1+'_'+tag2] = np.zeros((nbins, nbins))
+	with open(filename) as fh:
+		for line in fh:
+			words = line.strip().split('\t')
+			ch1 = words[c1-1]
+			ch2 = words[c2-1]
+			if (ch1 != ch2) or (ch1 not in regions):
+				continue
+			pos1 = int(int(words[p1-1]) / res)
+			pos2 = int(int(words[p2-1]) / res)
+			if a1 != a2:
+				tag1 = words[a1-1]
+				tag2 = words[a2-1]
+			elif sep is not None:
+				tag1, tag2 = words[a1-1].split(sep)
+			else:
+				raise ValueError("Must provide `sep` if allele flags are in the same column.")
+			# discard conflicting reads
+			if (tag1 not in (mat, pat, amb)) or (tag2 not in (mat, pat, amb)):
+				continue
+			for start, end in regions[ch1]:
+				s = start / res
+				e = end / res
+				if (s <= pos1 <= e) and (s <= pos2 <= e):
+					# sort the read pair in mat>pat>amb order
+					read1, read2 = sorted([[pos1, tag1], [pos2, tag2]],
+											key=lambda val: sort_order[val[1]])
+					pos1, tag1 = read1
+					pos2, tag2 = read2
+					if end < np.inf:
+						dictkey = '{}_{}_{}'.format(ch1, start, end)
+					else:
+						dictkey = ch1
+					matrices[dictkey][tag1+'_'+tag2][pos1-s, pos2-s] += 1
+					if (pos1 != pos2) and (tag1 == tag2):
+						matrices[dictkey][tag1+'_'+tag2][pos2-s, pos1-s] += 1
+	if prefix is None:
+		prefix = os.path.splitext(os.path.basename(filename))[0]
+	for rg in matrices:
+		write_path = os.path.join(output, rg)
+		if not os.path.exists(write_path):
+			os.makedirs(write_path)
+		if '_' in rg:
+			ch, start, end = rg.split('_')
+		else:
+			ch = rg
+			start = end = None
+		for tag in matrices[rg]:
+			# save whole chr and region with different name
+			if start is None or end is None:
+				np.save(os.path.join(write_path, 
+						'{}_{}_{}_{}.npy'.format(prefix, ch, tag, res)),
+						matrices[rg][tag])
+			else:
+				np.save(os.path.join(write_path, 
+						'{}_{}_{}_{}_{}_{}.npy'.format(prefix, ch, start, end, tag, res)),
+						matrices[rg][tag])
 
 
 @cli.command("pack")
