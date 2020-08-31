@@ -475,6 +475,7 @@ def binning_hicpro(filename, output, prefix, res, region, genome,
 
 
 @cli.command("pack")
+@click.option("--prefix", help='Prefix of packed data file.')
 @click.option("--diag", default=1, 
 			  show_default=True, 
 			  type=int,
@@ -484,6 +485,9 @@ def binning_hicpro(filename, output, prefix, res, region, genome,
 			  type=float,
 			  help='Percentage (%) of rows/columns that interact the least to filter out. '+
 			  'Range from 0 to 100.')
+@click.option("--filter-on", default='allele-certain', show_default=True,
+			  type=click.Choice(['allele-certain', 'mate-rescue', 'aggregate']),
+			  help='Which matrices to filter low mappability bins on.')			  
 @click.option("--mat", default="ref",
 			  show_default=True,
 			  help='Allele flag of maternal-specific reads.')
@@ -495,9 +499,9 @@ def binning_hicpro(filename, output, prefix, res, region, genome,
 			  help='Allele flag of allele-ambiguous reads.')
 @click.argument("datadir", type=click.Path(exists=True))
 @click.argument("outputdir", type=click.Path())
-def prepare_data(datadir, outputdir, diag, perc, mat, pat, amb):
+def prepare_data(datadir, outputdir, prefix, diag, perc, filter_on, mat, pat, amb):
 	"""Pack allele-certain and allele-ambiguous binned matrices in DATADIR into ASHIC input format.
-	Filter and mask loci with low mappability in allele-certain intra-chromosomal contact matrices.
+	Filter and mask loci with low mappability in allele-certain, mate-rescue, or aggregate contact matrices.
 	
 	DATADIR should contain .npy format matrices files with names in format of 
 
@@ -511,17 +515,21 @@ def prepare_data(datadir, outputdir, diag, perc, mat, pat, amb):
 	# read in matrix data
 	f = {mat: 'a', pat: 'b', amb: 'x'}
 	obs = {}
-	prefix = None
+	# prefix = None
 	if not os.path.exists(outputdir):
 		os.makedirs(outputdir)
 	for a1, a2 in combinations_with_replacement([mat, pat, amb], 2):
 		file = glob(os.path.join(datadir, "*_{}_{}_*.npy".format(a1, a2)))
-		assert len(file) == 1, \
-			"number of {}_{}.npy file is not 1: {}".format(a1, a2, len(file))
+		# assert len(file) == 1, \
+		# 	"number of {}_{}.npy file is not 1: {}".format(a1, a2, len(file))
 		if prefix is None:
 			prefix = os.path.basename(file[0]).replace("_{}_{}".format(a1, a2), '')
 			prefix = os.path.splitext(prefix)[0]
 		obs[f[a1]+f[a2]] = np.load(file[0])
+		if len(file) > 1:
+			print "Merge {} files together...".format(len(file))
+			for nextfile in file[1:]:
+				obs[f[a1]+f[a2]] += np.load(nextfile)
 		if a1 != a2: 
 			obs[f[a2]+f[a1]] = obs[f[a1]+f[a2]].T
 	n = obs['aa'].shape[0]
@@ -529,28 +537,53 @@ def prepare_data(datadir, outputdir, diag, perc, mat, pat, amb):
 	mask = mask_diagonals(n, k=diag)
 	for i in obs:
 		obs[i][~mask] = 0
+	# filter low-mappability bins based on allele-certain, mate-rescue or aggregate
+	if filter_on == 'allele-certain':
+		aa = obs['aa']
+		bb = obs['bb']
+	elif filter_on == 'mate-rescue':
+		aa = obs['aa'] + obs['ax'] + obs['xa']
+		bb = obs['bb'] + obs['bx'] + obs['xb']
+	elif filter_on == 'aggregate':
+		aa = obs['aa'] + obs['ax'] + obs['xa'] + \
+			 obs['bb'] + obs['bx'] + obs['xb'] + \
+			 obs['ab'] + obs['ba'] + obs['xx']
+	else:
+		raise ValueError("filter_on can only be allele-certain, mate-rescue or aggregate.")
 	# plot percentiles of marginal sum so we can choose a cutoff
-	perc_aa, sum_aa = [], np.nansum(obs['aa'], axis=0)
-	perc_bb, sum_bb = [], np.nansum(obs['bb'], axis=0)
+	perc_aa, sum_aa = [], np.nansum(aa, axis=0)
+	if filter_on != 'aggregate':
+		perc_bb, sum_bb = [], np.nansum(bb, axis=0)
 	for q in range(1, 101):
 		perc_aa.append(np.percentile(sum_aa, q))
-		perc_bb.append(np.percentile(sum_bb, q))
-	plt.plot(np.arange(1, 101), perc_aa, 
-			 label="{}-{}:{}%={}".format(mat, mat, perc, perc_aa[int(perc-1)]))
-	plt.plot(np.arange(1, 101), perc_bb, 
-			 label="{}-{}:{}%={}".format(pat, pat, perc, perc_bb[int(perc-1)]))
+		if filter_on != 'aggregate':
+			perc_bb.append(np.percentile(sum_bb, q))
+	if filter_on == 'allele-certain':
+		plt.plot(np.arange(1, 101), perc_aa, 
+				label="{}-{}:{}%={}".format(mat, mat, perc, perc_aa[int(perc-1)]))
+		plt.plot(np.arange(1, 101), perc_bb, 
+				label="{}-{}:{}%={}".format(pat, pat, perc, perc_bb[int(perc-1)]))
+	elif filter_on == 'mate-rescue':
+		plt.plot(np.arange(1, 101), perc_aa, 
+				label="{}-{}/{}:{}%={}".format(mat, mat, amb, perc, perc_aa[int(perc-1)]))
+		plt.plot(np.arange(1, 101), perc_bb, 
+				label="{}-{}/{}:{}%={}".format(pat, pat, amb, perc, perc_bb[int(perc-1)]))
+	elif filter_on == 'aggregate':
+		plt.plot(np.arange(1, 101), perc_aa, 
+				label="aggregate:{}%={}".format(perc, perc_aa[int(perc-1)]))				
 	plt.axvline(x=perc, ls=":", color="red")
 	plt.legend()
 	plt.savefig(os.path.join(outputdir, "percentiles.png"), bbox_inches="tight")
 	# filter low mappable (< q-th percentile marginal sum) bins
-	filtered = iced.filter.filter_low_counts(np.array(obs['aa']), 
+	filtered = iced.filter.filter_low_counts(np.array(aa), 
 											 sparsity=False,
 											 percentage=np.true_divide(perc, 100.0))
 	loci = np.nansum(filtered, axis=0) > 0
-	filtered = iced.filter.filter_low_counts(np.array(obs['bb']), 
-											 sparsity=False,
-											 percentage=np.true_divide(perc, 100.0))
-	loci = loci & (np.nansum(filtered, axis=0) > 0)
+	if filter_on != 'aggregate':
+		filtered = iced.filter.filter_low_counts(np.array(bb), 
+												sparsity=False,
+												percentage=np.true_divide(perc, 100.0))
+		loci = loci & (np.nansum(filtered, axis=0) > 0)
 	# change low mappable bins to 0
 	for i in obs:
 		obs[i][~loci, :] = 0
