@@ -10,6 +10,7 @@ from ashic.progresscb import BasicCallback
 # from ashic.model.poisson import Poisson
 # from ashic.misc import estimateparams
 from ashic.utils import init_counts, join_matrix
+from ashic.utils import init_gamma_complete
 from ashic.optimization import rmds
 from ashic.misc import plot3d
 import cPickle as pickle
@@ -64,6 +65,8 @@ def run_ashic(inputfile, outputdir, model_type,
     if init_gamma is not None:
         if os.path.isfile(init_gamma):
             init['gamma'] = np.loadtxt(init_gamma)
+        elif init_gamma == 'complete':
+            init['gamma'] = init_gamma_complete(init_con, params['loci'], diag, params['mask'])
         else:
             try:
                 init_gamma = float(init_gamma)

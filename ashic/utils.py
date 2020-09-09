@@ -100,6 +100,51 @@ def get_rdis(x):
 
 
 def init_counts(certain, ax, bx, xx):
+    total_counts = np.nansum(certain) + \
+        np.nansum(ax) * 2 + np.nansum(bx) * 2 + np.nansum(xx)
+    if np.nansum(certain) / total_counts > 0.2:
+        print "Initialize counts assignment with allele-certain..."
+        return init_counts_allele_certain(certain, ax, bx, xx)
+    else:
+        print "Initialize counts assignment with mate-rescue..."
+        return init_counts_mate_rescue(certain, ax, bx, xx)
+
+
+def init_counts_mate_rescue(certain, ax, bx, xx):
+    n = ax.shape[0]
+    aa = certain[:n, :n] + 1e-6
+    ab = certain[:n, n:]
+    bb = certain[n:, n:] + 1e-6
+    maa = certain[:n, :n] + ax + ax.T + 1e-6
+    mbb = certain[n:, n:] + bx + bx.T + 1e-6
+    diploid = maa + ab + ab.T + mbb
+
+    raa_ax = np.true_divide(aa, (aa + ab))
+    rab_ax = np.true_divide(ab, (aa + ab))
+    rbb_bx = np.true_divide(bb, (bb + ab.T))
+    rba_bx = np.true_divide(ab.T, (bb + ab.T))
+    raa_xx = np.true_divide(maa, diploid)
+    rbb_xx = np.true_divide(mbb, diploid)
+    rab_xx = np.true_divide(ab, diploid)
+    # assign each uncertain counts to different sources
+    aa_ax = np.multiply(raa_ax, ax)
+    ab_ax = np.multiply(rab_ax, ax)
+    bb_bx = np.multiply(rbb_bx, bx)
+    ba_bx = np.multiply(rba_bx, bx)  # !!! FIX: change from ab to ba
+    aa_xx = np.multiply(raa_xx, xx)
+    bb_xx = np.multiply(rbb_xx, xx)
+    ab_xx = np.multiply(rab_xx, xx)
+    # combine reassign counts
+    add_aa = aa_ax + aa_ax.T + aa_xx  # aa = aa* + a*a + a*a*
+    add_bb = bb_bx + bb_bx.T + bb_xx  # bb = bb* + b*b + b*b*
+    add_ab = ab_ax + ba_bx.T + ab_xx  # ab = ab* + a*b + a*b*
+    add_mat = np.concatenate((np.concatenate((add_aa, add_ab), axis=1),
+                              np.concatenate((add_ab.T, add_bb), axis=1)),
+                             axis=0)
+    return add_mat + certain
+
+
+def init_counts_allele_certain(certain, ax, bx, xx):
     """
     Assign allelic-uncertain counts proportion to certain counts.
     certain: ndarray
@@ -145,8 +190,29 @@ def init_counts(certain, ax, bx, xx):
     return add_mat + certain
 
 
-def init_gamma(data):
-    pass
+def init_gamma_complete(t, loci, diag, _mask):
+    n = t.shape[0] / 2
+    mask = ~np.tri(n, k=diag, dtype=bool)
+    mask[~loci, :] = False
+    mask[:, ~loci] = False
+    if _mask is not None:
+        mask = mask & _mask
+    mask = np.logical_or(mask, mask.T)
+    aa = np.array(t[:n, :n])
+    aa[~mask] = np.nan
+    bb = np.array(t[n:, n:])
+    bb[~mask] = np.nan
+    ab = np.array(t[:n, n:])
+    ab[~mask] = np.nan
+    gamma = np.zeros(n)
+    for offset in range(1, n):
+        da = np.diag(aa, offset)
+        db = np.diag(bb, offset)
+        d = np.concatenate((da, db))
+        gamma[offset-1] = 1. - ((d==0).sum() * 1.) / (~np.isnan(d)).sum()
+    gamma[-1] = 1. - (ab==0).sum() * 1. / (~np.isnan(ab)).sum()
+    return gamma
+
 
 
 def naneuclidean_distances(x):
