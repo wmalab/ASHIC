@@ -1,5 +1,6 @@
 import click
 from ashic.commands import fitrealdata
+from ashic.commands import fitraodata
 
 # change --help to both --help and -h to display help message
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -51,6 +52,20 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               show_default=True,
               help="Method to initialize structure: 'random', 'MDS' or " +
               "a TEXT file containing precomputed structure.")
+@click.option('--init-c', default='allele-certain',
+              show_default=True,
+              type=click.Choice(['allele-certain', 'mate-rescue']),
+              help='Method to initialize complete matrix.')
+@click.option('--ensemble', is_flag=True,
+              show_default=True,
+              help='Use ensemble mode with multiple structures.')
+@click.option('--n-structure', type=int,
+              help='Number of structures in ensemble mode.')
+@click.option('--smooth', is_flag=True,
+              show_default=True,
+              help='Use 2D mean filter to smooth the initial complete matrix.')
+@click.option('--h', type=int,
+              help='Top/bottom/left/right padding of the mean filter window.')
 # @click.option('--init-model', type=click.Path(exists=True),
 #               help='Precomputed model file to initialize parameters.')
 @click.option('--max-func', default=200, 
@@ -71,12 +86,23 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def cli(inputfile, outputdir, model, diag,
         max_iter, tol, seed, gamma_share, 
         init_gamma, init_x, 
+        init_c, ensemble, n_structure,
+        smooth, h,
         max_func, separate, normalize, save_iter):
     """ASHIC: Hierarchical Bayesian modeling of diploid chromatin contacts and structures.\n
     Example:
     ashic -i <INPUT> -o <OUTPUT>
 
     Refer to README.md for <INPUT> format detail and how to generate with command `ashic-data`."""
+    if ensemble:
+        return fitraodata.run_ashic(
+            inputfile, outputdir, model_type=model,
+            diag=diag, max_iter=max_iter, tol=tol, seed=seed,
+            gamma_share=gamma_share, init_gamma=init_gamma, init_x=init_x,
+            init_c=init_c, ensemble=ensemble, n_structure=n_structure,
+            normalize=normalize, smooth=smooth, h=h, save_iter=save_iter,
+            max_func=max_func, separate=separate
+        )
     fitrealdata.run_ashic(inputfile, outputdir, model_type=model,
                           diag=diag, max_iter=max_iter, tol=tol, seed=seed, 
                           gamma_share=gamma_share, init_gamma=init_gamma, init_x=init_x,
