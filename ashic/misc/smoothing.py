@@ -9,7 +9,7 @@ def mean_filter(mat, mask=None, h=1):
         # make sure to exclude main diagonal and lower traingle
         mask = np.triu(mask, k=1)
     # !!! treat zeros as missing
-    x[x == 0] = np.nan
+    # x[x == 0] = np.nan
     x[~mask] = np.nan
     y = np.full((n, n), np.nan, dtype=float)
     # only use upper traingle indices
