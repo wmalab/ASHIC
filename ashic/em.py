@@ -25,9 +25,9 @@ def emfit(model, data, maxiter=20, tol=1e-4, callback=basic_callback, **kwargs):
             break
         if i >= maxiter:
             break
-    expected = model.expectation(data)
-    if callback:
-        callback(i, model, loglikelihood, expected)
+    # expected = model.expectation(data)
+    # if callback:
+    #     callback(i, model, loglikelihood, expected)
     if converge:
         message = "terminated successfully"
     elif loglikelihood < loglikelihoods[-1]:
