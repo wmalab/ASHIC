@@ -10,6 +10,9 @@ Create a conda env with `ASHIC` installed:
 conda env create -f environment.yml
 ```
 
+## Citation
+Ye, T., & Ma, W. (2020). ASHIC: hierarchical Bayesian modeling of diploid chromatin contacts and structures. *Nucleic acids research*, 48(21), e123-e123. DOI: https://doi.org/10.1093/nar/gkaa872
+
 ## Usage
 
 ```
