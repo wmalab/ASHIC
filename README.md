@@ -207,6 +207,61 @@ Options:
   -h, --help       Show this message and exit.
 ```
 
+### Generate binned matrices from HiC-Pro *validPairs* files
+Another approach to generate mapped allele specific read pairs from raw FASTQ files is to run [HiC-Pro](https://github.com/nservant/HiC-Pro) with [allele specific mode](https://nservant.github.io/HiC-Pro/AS.html).
+It will generate *validPairs* files which contain one additional column with the allele assignment of each read pair. 
+We will generate the binned matrices from HiC-Pro *validPairs* files using the `ashic-data bin-hicpro` command: 
+
+```
+ashic-data bin-hicpro <VALIDPAIRS> <OUTPUT> --res=<RES> --region=<REGION> --genome=<CHROM.SIZES>
+```
+
+`ashic-data bin-hicpro` has two arguments: 
+- `<VALIDPAIRS>`: path to the HiC-Pro *validPairs* file 
+- `<OUTPUT>`: output directory to store binned matrices
+
+And three required options:
+- `--res=<RES>`: resolution of binned matrices in base-pair
+- `--region=<REGION>`: chromosomes(s) or region(s) to generate the binned matrices e.g. `chr1` or `chr1:1000000-5000000`, if multiple regions, separate each region with comma `,`
+- `--genome=<CHROM.SIZES>`: path to the `chrom.sizes` file that specify the chromosome lengths for a given genome
+
+The default values for other options are consistent with HiC-Pro *validPairs* file format.
+Please refer to the full description of each option below: 
+
+```
+> ashic-data bin-hicpro -h
+Usage: ashic-data bin-hicpro [OPTIONS] FILENAME OUTPUT
+
+Options:
+  --prefix TEXT  .npy files prefix. If not provide, use <filename>.
+  --res INTEGER  Resolution in base pair of the binned contact matrices.
+                 [required]
+  --region TEXT  Chromosome(s) or region(s) to generate the binned contact
+                 matrices.  [required]
+  --genome PATH  Genome reference (.chrom.sizes) file.
+  --mat TEXT     Allele flag of maternal-specific reads.  [default: 1]
+  --pat TEXT     Allele flag of paternal-specific reads.  [default: 2]
+  --amb TEXT     Allele flag of allele-ambiguous reads.  [default: 0]
+  --c1 INTEGER   Column index (1-based) of chromosome of the 1st end.
+                 [default: 2]
+  --p1 INTEGER   Column index (1-based) of coordinate of the 1st end.
+                 [default: 3]
+  --a1 INTEGER   Column index (1-based) of allele of the 1st end.  
+                 [default: 13]
+  --c2 INTEGER   Column index (1-based) of chromosome of the 2nd end.
+                 [default: 5]
+  --p2 INTEGER   Column index (1-based) of coordinate of the 2nd end.
+                 [default: 6]
+  --a2 INTEGER   Column index (1-based) of allele of the 2nd end.  
+                 [default: 13]
+  --sep TEXT     Delimiter string to separate allele flags of 1st and 2nd ends
+                 if they are in the same column.  [default: -]
+  -h, --help     Show this message and exit.
+```
+
+
+### Pack binned matrices into ASHIC input data
+
 Finally, we pack the binned matrices into pickle data with some essential parameters (length of chromosome, distance decay exponent, etc.) and filter low mappability loci.
 The output pickle data can be used as input for ASHIC.
 
